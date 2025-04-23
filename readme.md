@@ -4,7 +4,7 @@ A Solana-based coinflip game where players can bet between 0.1 and 5 SOL and rec
 
 ## Program Details
 
-- **Program ID**: `7K22gKZ7nFshbGGBMZetA4W4Dakn58kauwhVTs3yHDk9`
+- **Program ID**: `BLW2czkQvfXUJFFNovX6BJgpikGx86xqdUuZyoBiX1GW`
 - **Network**: Solana Devnet
 
 ## Game Mechanics

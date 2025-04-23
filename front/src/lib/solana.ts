@@ -5,7 +5,7 @@ import idl from './idl/degen_coin_flip.json';
 import { BN } from '@project-serum/anchor';
 
 // Program ID from your deployed contract
-const programId = new PublicKey('7K22gKZ7nFshbGGBMZetA4W4Dakn58kauwhVTs3yHDk9');
+const programId = new PublicKey('BLW2czkQvfXUJFFNovX6BJgpikGx86xqdUuZyoBiX1GW');
 
 // Fonction pour créer un wallet de test (uniquement pour le développement)
 export const createTestWallet = () => {

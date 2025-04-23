@@ -15,7 +15,7 @@ async function main() {
   const wallet = loadWallet(os.homedir() + '/.config/solana/id.json');
   
   // ID de votre programme
-  const programId = new PublicKey('7K22gKZ7nFshbGGBMZetA4W4Dakn58kauwhVTs3yHDk9');
+  const programId = new PublicKey('BLW2czkQvfXUJFFNovX6BJgpikGx86xqdUuZyoBiX1GW');
   
   // Dérivez les PDAs
   const [gameStatePDA] = await PublicKey.findProgramAddress(

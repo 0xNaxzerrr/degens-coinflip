@@ -4,7 +4,7 @@ use anchor_lang::solana_program::{
     program::{invoke, invoke_signed},
     system_instruction,
 };
-declare_id!("7jeDRorikdppVDQcNT21hjJZYKCkj8DgoJ8a9CYoDrdk");
+declare_id!("BLW2czkQvfXUJFFNovX6BJgpikGx86xqdUuZyoBiX1GW");
 
 #[program]
 pub mod coinflip {

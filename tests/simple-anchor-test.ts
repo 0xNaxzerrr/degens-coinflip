@@ -15,7 +15,7 @@ describe("simple-anchor-test", () => {
   anchor.setProvider(provider);
   
   // Get the program ID and program from workspace
-  const programId = new anchor.web3.PublicKey("7jeDRorikdppVDQcNT21hjJZYKCkj8DgoJ8a9CYoDrdk");
+  const programId = new anchor.web3.PublicKey("BLW2czkQvfXUJFFNovX6BJgpikGx86xqdUuZyoBiX1GW");
   const program = anchor.workspace.coinflip;
 
   it("should connect to the cluster", async () => {

@@ -14,7 +14,7 @@ import { BN, Program } from "@project-serum/anchor"
 import idl from "@/lib/idl/degen_coin_flip.json"
 
 // Program ID from your deployed contract
-const programId = new PublicKey('7K22gKZ7nFshbGGBMZetA4W4Dakn58kauwhVTs3yHDk9');
+const programId = new PublicKey('BLW2czkQvfXUJFFNovX6BJgpikGx86xqdUuZyoBiX1GW');
 
 export default function Home() {
   const [isMounted, setIsMounted] = useState(false)
@@ -29,7 +29,7 @@ export default function Home() {
   const [latestBetId, setLatestBetId] = useState<number | null>(null)
   const [testWallet, setTestWallet] = useState<any>(null)
 
-  const isConnected = isAppKitConnected || publicKey || testWallet !== null
+  const isConnected =  publicKey
 
   const displayWalletInfo = () => {
     console.log("Wallet Status:")
@@ -48,18 +48,8 @@ export default function Home() {
       const phantomExists = !!window.phantom?.solana;
       console.log("Phantom existe dans window:", phantomExists);
     }
-
-    toast.info("Wallet info output to console. Check developer tools!")
   }
 
-  // Fonction pour créer un wallet de test
-  const setupTestWallet = () => {
-    const newTestWallet = createTestWallet();
-    setTestWallet(newTestWallet);
-    console.log("Created test wallet:", newTestWallet.publicKey.toString());
-    toast.success(`Created test wallet: ${newTestWallet.publicKey.toString().slice(0, 10)}...`);
-    toast.warning("This is a test wallet with no funds. Real transactions will fail.");
-  }
 
   useEffect(() => {
     setIsMounted(true)
@@ -282,51 +272,6 @@ export default function Home() {
     }, 3000)
   }
 
-  const checkLatestBetResult = async () => {
-    if (!latestBetId || !publicKey || !sendTransaction) {
-      toast.error("Please connect with Phantom first");
-      return;
-    }
-    
-    try {
-      // Obtenir les PDAs nécessaires
-      const gameState = await getGameStatePDA();
-      const escrow = await getEscrowPDA();
-      const bet = await getBetPDA(publicKey, latestBetId);
-      
-      console.log("Checking result for bet:", {
-        wallet: publicKey.toString(),
-        betId: latestBetId,
-        escrow: escrow.toString(),
-        gameState: gameState.toString(),
-        bet: bet.toString()
-      });
-      
-      // Obtenir le résultat du pari
-      const result = await checkBetResult(connection, publicKey, latestBetId);
-      
-      console.log("Bet result:", result);
-      
-      if (result.success) {
-        if (result.isWon) {
-          toast.success(`You won ${(betAmount * 2).toFixed(2)} SOL!`, { id: "result" });
-          toast.info(`Result was ${result.resultText}`, { id: "result-details" });
-          spawnBananas();
-        } else if (result.isLost) {
-          toast.error(`You lost ${betAmount.toFixed(2)} SOL!`, { id: "result" });
-          toast.info(`Result was ${result.resultText}`, { id: "result-details" });
-        } else {
-          toast.warning(`Bet status: ${result.statusText}`, { id: "result" });
-        }
-      } else {
-        toast.error(`Error checking bet: ${result.error}`, { id: "result" });
-      }
-    } catch (error: any) {
-      console.error("Error checking bet result:", error);
-      toast.error(`Error: ${error.message || "Unknown error"}`);
-    }
-  }
-
   return (
     <main
       style={{
@@ -441,19 +386,6 @@ export default function Home() {
             }}
           >
             <PhantomOnlyButton />
-          </div>
-
-          {/* AppKit Button */}
-          <div
-            style={{
-              padding: "0.5rem 1rem",
-              backgroundColor: "rgba(154, 52, 18, 0.2)",
-              border: "1px solid rgba(234, 88, 12, 0.5)",
-              borderRadius: "0.375rem",
-              color: "rgb(255, 237, 213)",
-            }}
-          >
-            <appkit-button />
           </div>
         </div>
       </div>
