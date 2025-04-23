@@ -1,0 +1,162 @@
+{
+    "version": "0.1.0",
+    "name": "coinflip",
+    "instructions": [
+      {
+        "name": "initialize",
+        "accounts": [
+          {
+            "name": "admin",
+            "isMut": true,
+            "isSigner": true
+          },
+          {
+            "name": "gameState",
+            "isMut": true,
+            "isSigner": false
+          },
+          {
+            "name": "escrow",
+            "isMut": false,
+            "isSigner": false
+          },
+          {
+            "name": "systemProgram",
+            "isMut": false,
+            "isSigner": false
+          }
+        ],
+        "args": []
+      },
+      {
+        "name": "placeBet",
+        "accounts": [
+          {
+            "name": "player",
+            "isMut": true,
+            "isSigner": true
+          },
+          {
+            "name": "bet",
+            "isMut": true,
+            "isSigner": false
+          },
+          {
+            "name": "escrow",
+            "isMut": true,
+            "isSigner": false
+          },
+          {
+            "name": "gameState",
+            "isMut": false,
+            "isSigner": false
+          },
+          {
+            "name": "systemProgram",
+            "isMut": false,
+            "isSigner": false
+          }
+        ],
+        "args": [
+          {
+            "name": "amount",
+            "type": "u64"
+          },
+          {
+            "name": "userChoice",
+            "type": "u8"
+          }
+        ]
+      }
+    ],
+    "accounts": [
+      {
+        "name": "GameState",
+        "type": {
+          "kind": "struct",
+          "fields": [
+            {
+              "name": "admin",
+              "type": "publicKey"
+            },
+            {
+              "name": "bump",
+              "type": "u8"
+            }
+          ]
+        }
+      },
+      {
+        "name": "Bet",
+        "type": {
+          "kind": "struct",
+          "fields": [
+            {
+              "name": "player",
+              "type": "publicKey"
+            },
+            {
+              "name": "amount",
+              "type": "u64"
+            },
+            {
+              "name": "userChoice",
+              "type": "u8"
+            },
+            {
+              "name": "status",
+              "type": {
+                "defined": "BetStatus"
+              }
+            },
+            {
+              "name": "timestamp",
+              "type": "i64"
+            },
+            {
+              "name": "result",
+              "type": "u8"
+            },
+            {
+              "name": "bump",
+              "type": "u8"
+            }
+          ]
+        }
+      }
+    ],
+    "types": [
+      {
+        "name": "BetStatus",
+        "type": {
+          "kind": "enum",
+          "variants": [
+            {
+              "name": "Pending"
+            },
+            {
+              "name": "Won"
+            },
+            {
+              "name": "Lost"
+            }
+          ]
+        }
+      }
+    ],
+    "errors": [
+      {
+        "code": 6000,
+        "name": "InvalidBetAmount",
+        "msg": "Invalid bet amount. Bet must be between 0.1 and 5 SOL"
+      },
+      {
+        "code": 6001,
+        "name": "InvalidChoice",
+        "msg": "Invalid choice. Must be 0 (Heads) or 1 (Tails)"
+      }
+    ],
+    "metadata": {
+      "address": "J3N3KB13mXFt6JKovrYnpBbzFLzs4J777D986qrhEQpZ"
+    }
+  }

@@ -7,6 +7,8 @@ import {
     PhantomWalletAdapter,
     SolflareWalletAdapter,
 } from "@solana/wallet-adapter-wallets";
+import { ReactNode } from "react";
+import WalletContextProvider from "./wallet-provider";
 
 // 0. Set up Solana Adapter
 const solanaWeb3JsAdapter = new SolanaAdapter({
@@ -38,13 +40,11 @@ createAppKit({
     },
 });
 
-import { ReactNode } from "react";
-
 const SolWrapper = ({ children }: { children: ReactNode }) => {
     return (
-        <>
+        <WalletContextProvider>
             {children}
-        </>
+        </WalletContextProvider>
     )
 }
 

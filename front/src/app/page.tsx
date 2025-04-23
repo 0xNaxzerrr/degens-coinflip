@@ -6,6 +6,15 @@ import { toast } from "sonner"
 import CoinFlip from "@/components/coin-flip"
 import BetControls from "@/components/bet-controls"
 import { useAppKitAccount } from "@reown/appkit/react"
+import { placeBet as placeSolanaBet, createTestWallet, getBetPDA, getEscrowPDA, getGameStatePDA, checkBetResult } from "@/lib/solana"
+import { useConnection, useWallet } from "@solana/wallet-adapter-react"
+import { PublicKey, Transaction, SystemProgram, LAMPORTS_PER_SOL } from "@solana/web3.js"
+import { PhantomOnlyButton } from "@/components/wallet-button"
+import { BN, Program } from "@project-serum/anchor"
+import idl from "@/lib/idl/degen_coin_flip.json"
+
+// Program ID from your deployed contract
+const programId = new PublicKey('7K22gKZ7nFshbGGBMZetA4W4Dakn58kauwhVTs3yHDk9');
 
 export default function Home() {
   const [isMounted, setIsMounted] = useState(false)
@@ -14,41 +23,224 @@ export default function Home() {
   const [choice, setChoice] = useState<0 | 1>(0) // 0 for heads, 1 for tails
   const [result, setResult] = useState<null | boolean>(null)
   const [bananas, setBananas] = useState<Array<{ id: number; left: number; top: number }>>([])
-  const { address, isConnected } = useAppKitAccount()
+  const { address, isConnected: isAppKitConnected } = useAppKitAccount()
+  const { connection } = useConnection()
+  const { publicKey, sendTransaction } = useWallet()
+  const [latestBetId, setLatestBetId] = useState<number | null>(null)
+  const [testWallet, setTestWallet] = useState<any>(null)
+
+  const isConnected = isAppKitConnected || publicKey || testWallet !== null
+
+  const displayWalletInfo = () => {
+    console.log("Wallet Status:")
+    console.log("AppKit Connected:", isAppKitConnected)
+    console.log("AppKit Address:", address)
+    console.log("Wallet Adapter Connected:", publicKey ? true : false)
+    console.log("Wallet Adapter PublicKey:", publicKey?.toString())
+    console.log("Test Wallet Active:", testWallet !== null)
+    console.log("Test Wallet PublicKey:", testWallet?.publicKey?.toString())
+    console.log("Combined isConnected:", isConnected)
+    console.log("SendTransaction available:", typeof sendTransaction === 'function')
+
+    // Vérification de Phantom dans window
+    if (typeof window !== 'undefined') {
+      // @ts-ignore
+      const phantomExists = !!window.phantom?.solana;
+      console.log("Phantom existe dans window:", phantomExists);
+    }
+
+    toast.info("Wallet info output to console. Check developer tools!")
+  }
+
+  // Fonction pour créer un wallet de test
+  const setupTestWallet = () => {
+    const newTestWallet = createTestWallet();
+    setTestWallet(newTestWallet);
+    console.log("Created test wallet:", newTestWallet.publicKey.toString());
+    toast.success(`Created test wallet: ${newTestWallet.publicKey.toString().slice(0, 10)}...`);
+    toast.warning("This is a test wallet with no funds. Real transactions will fail.");
+  }
 
   useEffect(() => {
     setIsMounted(true)
-  }, [])
+    
+    // Vérification de Phantom dans la fenêtre
+    const checkPhantom = () => {
+      // @ts-ignore
+      const isPhantomInstalled = window.phantom?.solana?.isPhantom;
+      if (isPhantomInstalled) {
+        console.log("Phantom est installé ✓");
+      } else {
+        console.log("Phantom n'est pas installé ✗");
+      }
+    };
 
-  const placeBet = () => {
+    // Vérification après montage du composant
+    if (typeof window !== 'undefined') {
+      checkPhantom();
+    }
+    
+    // Log wallet status on mount and when connection status changes
+    displayWalletInfo()
+  }, [isConnected, publicKey, address])
+
+  const placeBet = async () => {
     if (!isConnected) {
       toast.error("Please connect your wallet first")
       return
     }
 
+    // Afficher les informations détaillées du wallet
+    displayWalletInfo()
+
+    // Déterminer quel wallet utiliser
+    const activeWallet = testWallet || { publicKey: publicKey || (address ? new PublicKey(address) : null) };
+
+    // Si nous n'avons pas de clé publique, montrer une erreur
+    if (!activeWallet.publicKey) {
+      toast.error("Wallet connection issue. Please reconnect.")
+      return
+    }
+
     setIsFlipping(true)
-    toast.loading("Transaction sent to Solana network...", { id: "transaction" })
+    toast.loading("Preparing transaction...", { id: "transaction" })
 
-    // Simulate blockchain delay
-    setTimeout(() => {
-      toast.success("Transaction confirmed!", { id: "transaction" })
+    try {
+      // Generate a unique bet ID based on timestamp
+      const betId = Date.now()
+      setLatestBetId(betId)
 
-      // Simulate random result (50/50 chance)
-      const outcome = Math.random() > 0.5 ? 0 : 1
-      const userWon = outcome === choice
-
-      setTimeout(() => {
-        setResult(userWon)
-        setIsFlipping(false)
-
-        if (userWon) {
-          toast.success(`You won ${(betAmount * 2).toFixed(2)} SOL!`)
-          spawnBananas()
-        } else {
-          toast.error(`You lost ${betAmount.toFixed(2)} SOL!`)
+      // Vérifier si nous utilisons Phantom directement
+      if (publicKey && sendTransaction) {
+        toast.info(`Using Phantom wallet: ${publicKey.toString().slice(0, 10)}...`, { id: "wallet-info" })
+        
+        try {
+          // Création manuelle de la transaction
+          const walletPubkey = publicKey;
+          const lamports = betAmount * LAMPORTS_PER_SOL;
+          const userChoice = choice;
+          
+          // Obtenir les PDAs nécessaires
+          const gameState = await getGameStatePDA();
+          const escrow = await getEscrowPDA();
+          const bet = await getBetPDA(walletPubkey, betId);
+          
+          console.log("Creating transaction with:", {
+            wallet: walletPubkey.toString(),
+            amount: betAmount,
+            userChoice: userChoice,
+            betId: betId,
+            escrow: escrow.toString(),
+            gameState: gameState.toString(),
+            bet: bet.toString()
+          });
+          
+          // Obtenir le blockhash récent
+          const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
+          
+          // Créer une nouvelle transaction
+          const transaction = new Transaction({
+            feePayer: walletPubkey,
+            blockhash,
+            lastValidBlockHeight
+          });
+          
+          // Ajouter les instructions pour l'instruction placeBet
+          // Note: Comme le programme attend place_bet avec 3 args mais l'IDL n'en définit que 2
+          // On utilise une transaction simple avec serializeData pour inclure les données correctes
+          const betIdBuffer = Buffer.from(new BN(betId).toArray('le', 8));
+          const lamportsBuffer = Buffer.from(new BN(lamports).toArray('le', 8));
+          const userChoiceBuffer = Buffer.from([userChoice]);
+          
+          // Créer l'instruction manuelle
+          transaction.add({
+            keys: [
+              { pubkey: walletPubkey, isSigner: true, isWritable: true },
+              { pubkey: bet, isSigner: false, isWritable: true },
+              { pubkey: escrow, isSigner: false, isWritable: true },
+              { pubkey: gameState, isSigner: false, isWritable: false },
+              { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+            ],
+            programId,
+            data: Buffer.concat([
+              // Discriminator pour place_bet (8 premiers octets)
+              Buffer.from([222, 62, 67, 220, 63, 166, 126, 33]),
+              lamportsBuffer,           // amount (u64)
+              userChoiceBuffer,         // userChoice (u8)
+              betIdBuffer               // betId (u64)
+            ])
+          });
+          
+          // Envoyer la transaction via wallet-adapter
+          const signature = await sendTransaction(transaction, connection);
+          
+          toast.success("Transaction sent!", { id: "transaction" });
+          toast.info(`Transaction signature: ${signature.slice(0, 10)}...`, { id: "tx-info" });
+          
+          // Attendre la confirmation de la transaction
+          const confirmation = await connection.confirmTransaction({
+            blockhash,
+            lastValidBlockHeight,
+            signature
+          });
+          
+          if (confirmation.value.err) {
+            toast.error(`Transaction failed: ${confirmation.value.err}`, { id: "transaction" });
+            setIsFlipping(false);
+            return;
+          }
+          
+          toast.success("Transaction confirmed!", { id: "transaction" });
+          
+          // Pour le développement, nous simulons encore le résultat
+          setTimeout(() => {
+            const userWon = Math.random() > 0.5;
+            setResult(userWon);
+            setIsFlipping(false);
+            
+            if (userWon) {
+              toast.success(`You won ${(betAmount * 2).toFixed(2)} SOL!`);
+              spawnBananas();
+            } else {
+              toast.error(`You lost ${betAmount.toFixed(2)} SOL!`);
+            }
+          }, 2000);
+          
+        } catch (txError: any) {
+          console.error("Transaction error with Phantom:", txError);
+          toast.error(`Transaction error: ${txError.message}`, { id: "transaction" });
+          setIsFlipping(false);
+          
+          // Fallback to simulation after error
+          toast.warning("Falling back to simulation mode", { id: "simulation", duration: 3000 });
+          simulateBet();
         }
-      }, 3000) // After 3 seconds show result
-    }, 2000) // Simulate 2 second blockchain confirmation
+      } else {
+        // Si ce n'est pas Phantom ou pas de sendTransaction, utiliser la simulation
+        toast.warning("Using simulation mode (wallet cannot sign)", { id: "transaction", duration: 5000 });
+        simulateBet();
+      }
+    } catch (error: any) {
+      console.error("Error placing bet:", error)
+      toast.error(`Error: ${error.message || "Unknown error"}`, { id: "transaction" })
+      setIsFlipping(false)
+    }
+  }
+  
+  // Fonction pour simuler un pari
+  const simulateBet = () => {
+    setTimeout(() => {
+      toast.success("Transaction simulated!", { id: "transaction" })
+      const userWon = Math.random() > 0.5
+      setResult(userWon)
+      setIsFlipping(false)
+      if (userWon) {
+        toast.success(`You won ${(betAmount * 2).toFixed(2)} SOL!`)
+        spawnBananas()
+      } else {
+        toast.error(`You lost ${betAmount.toFixed(2)} SOL!`)
+      }
+    }, 2000)
   }
 
   const spawnBananas = () => {
@@ -88,6 +280,51 @@ export default function Home() {
     setTimeout(() => {
       setBananas([])
     }, 3000)
+  }
+
+  const checkLatestBetResult = async () => {
+    if (!latestBetId || !publicKey || !sendTransaction) {
+      toast.error("Please connect with Phantom first");
+      return;
+    }
+    
+    try {
+      // Obtenir les PDAs nécessaires
+      const gameState = await getGameStatePDA();
+      const escrow = await getEscrowPDA();
+      const bet = await getBetPDA(publicKey, latestBetId);
+      
+      console.log("Checking result for bet:", {
+        wallet: publicKey.toString(),
+        betId: latestBetId,
+        escrow: escrow.toString(),
+        gameState: gameState.toString(),
+        bet: bet.toString()
+      });
+      
+      // Obtenir le résultat du pari
+      const result = await checkBetResult(connection, publicKey, latestBetId);
+      
+      console.log("Bet result:", result);
+      
+      if (result.success) {
+        if (result.isWon) {
+          toast.success(`You won ${(betAmount * 2).toFixed(2)} SOL!`, { id: "result" });
+          toast.info(`Result was ${result.resultText}`, { id: "result-details" });
+          spawnBananas();
+        } else if (result.isLost) {
+          toast.error(`You lost ${betAmount.toFixed(2)} SOL!`, { id: "result" });
+          toast.info(`Result was ${result.resultText}`, { id: "result-details" });
+        } else {
+          toast.warning(`Bet status: ${result.statusText}`, { id: "result" });
+        }
+      } else {
+        toast.error(`Error checking bet: ${result.error}`, { id: "result" });
+      }
+    } catch (error: any) {
+      console.error("Error checking bet result:", error);
+      toast.error(`Error: ${error.message || "Unknown error"}`);
+    }
   }
 
   return (
@@ -184,19 +421,40 @@ export default function Home() {
             MONKEY FLIP
           </h1>
         </div>
-        <div
+
+        {/* Wallets Buttons Container */}
+        <div 
           style={{
             display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            padding: "0.5rem 1rem",
-            backgroundColor: "rgba(154, 52, 18, 0.2)",
-            border: "1px solid rgba(234, 88, 12, 0.5)",
-            borderRadius: "0.375rem",
-            color: "rgb(255, 237, 213)",
+            gap: "10px",
+            alignItems: "center"
           }}
         >
-          <appkit-button />
+          {/* Phantom Button */}
+          <div
+            style={{
+              padding: "0.5rem 1rem",
+              backgroundColor: "rgba(154, 52, 18, 0.2)",
+              border: "1px solid rgba(234, 88, 12, 0.5)",
+              borderRadius: "0.375rem",
+              color: "rgb(255, 237, 213)",
+            }}
+          >
+            <PhantomOnlyButton />
+          </div>
+
+          {/* AppKit Button */}
+          <div
+            style={{
+              padding: "0.5rem 1rem",
+              backgroundColor: "rgba(154, 52, 18, 0.2)",
+              border: "1px solid rgba(234, 88, 12, 0.5)",
+              borderRadius: "0.375rem",
+              color: "rgb(255, 237, 213)",
+            }}
+          >
+            <appkit-button />
+          </div>
         </div>
       </div>
 
@@ -254,15 +512,18 @@ export default function Home() {
                 style={{
                   width: "100%",
                   marginTop: "1rem",
-                  backgroundColor: "#f59e0b",
+                  backgroundColor: "rgba(245, 158, 11, 0.8)",
                   borderRadius: "0.375rem",
                   padding: "0.75rem 0",
                   display: "flex",
                   justifyContent: "center",
                   alignItems: "center",
+                  color: "#451a03",
+                  fontWeight: "bold",
+                  textAlign: "center",
                 }}
               >
-                <appkit-button />
+                <appkit-button label="CONNECT WALLET" />
               </div>
             )}
           </div>
