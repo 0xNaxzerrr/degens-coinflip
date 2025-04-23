@@ -236,17 +236,6 @@ export default function CoinFlip({ isFlipping, result, choice, setChoice }: Coin
                     />
                 </div>
             )}
-
-            <style jsx>{`
-        @keyframes bounce-slow {
-          0%, 100% {
-            transform: translateY(0);
-          }
-          50% {
-            transform: translateY(-10px);
-          }
-        }
-      `}</style>
         </div>
     )
 }

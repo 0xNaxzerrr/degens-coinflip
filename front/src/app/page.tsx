@@ -7,30 +7,22 @@ import CoinFlip from "@/components/coin-flip"
 import BetControls from "@/components/bet-controls"
 import { useAppKitAccount } from "@reown/appkit/react"
 
-
 export default function Home() {
   const [isMounted, setIsMounted] = useState(false)
-  const [walletConnected, setWalletConnected] = useState(false)
-  const [showModal, setShowModal] = useState(false)
   const [betAmount, setBetAmount] = useState(0.1)
   const [isFlipping, setIsFlipping] = useState(false)
   const [choice, setChoice] = useState<0 | 1>(0) // 0 for heads, 1 for tails
   const [result, setResult] = useState<null | boolean>(null)
   const [bananas, setBananas] = useState<Array<{ id: number; left: number; top: number }>>([])
+  const { address, isConnected } = useAppKitAccount()
 
   useEffect(() => {
     setIsMounted(true)
   }, [])
 
-  const connectWallet = () => {
-    toast.success("Wallet connected successfully!")
-    setWalletConnected(true)
-    setShowModal(false)
-  }
-
   const placeBet = () => {
-    if (!walletConnected) {
-      setShowModal(true)
+    if (!isConnected) {
+      toast.error("Please connect your wallet first")
       return
     }
 
@@ -97,8 +89,6 @@ export default function Home() {
       setBananas([])
     }, 3000)
   }
-  const { address, isConnected } = useAppKitAccount()
-
 
   return (
     <main
@@ -194,17 +184,18 @@ export default function Home() {
             MONKEY FLIP
           </h1>
         </div>
-        <div style={{
-          display: "flex",
-          alignItems: "center",
-          gap: "0.5rem",
-          padding: "0.5rem 1rem",
-          backgroundColor: "rgba(154, 52, 18, 0.2)",
-          border: "1px solid rgba(234, 88, 12, 0.5)",
-          borderRadius: "0.375rem",
-          color: "rgb(255, 237, 213)",
-          cursor: "pointer",
-        }}>
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "0.5rem",
+            padding: "0.5rem 1rem",
+            backgroundColor: "rgba(154, 52, 18, 0.2)",
+            border: "1px solid rgba(234, 88, 12, 0.5)",
+            borderRadius: "0.375rem",
+            color: "rgb(255, 237, 213)",
+          }}
+        >
           <appkit-button />
         </div>
       </div>
@@ -237,27 +228,42 @@ export default function Home() {
 
           <div style={{ marginTop: "2rem" }}>
             <BetControls betAmount={betAmount} setBetAmount={setBetAmount} isFlipping={isFlipping} />
-
-            <button
-              onClick={placeBet}
-              disabled={isFlipping}
-              style={{
-                width: "100%",
-                marginTop: "1rem",
-                backgroundColor: "#f59e0b",
-                color: "#451a03",
-                fontWeight: "bold",
-                fontSize: "1.25rem",
-                padding: "1.5rem 0",
-                borderRadius: "0.375rem",
-                border: "none",
-                cursor: isFlipping ? "not-allowed" : "pointer",
-                fontFamily: "Impact, Haettenschweiler, 'Arial Narrow Bold', sans-serif",
-                letterSpacing: "0.05em",
-              }}
-            >
-              {isFlipping ? "Flipping..." : "FLIP COIN"}
-            </button>
+            {isConnected ? (
+              <button
+                onClick={placeBet}
+                disabled={isFlipping}
+                style={{
+                  width: "100%",
+                  marginTop: "1rem",
+                  backgroundColor: "#f59e0b",
+                  color: "#451a03",
+                  fontWeight: "bold",
+                  fontSize: "1.25rem",
+                  padding: "1.5rem 0",
+                  borderRadius: "0.375rem",
+                  border: "none",
+                  cursor: isFlipping ? "not-allowed" : "pointer",
+                  fontFamily: "Impact, Haettenschweiler, 'Arial Narrow Bold', sans-serif",
+                  letterSpacing: "0.05em",
+                }}
+              >
+                {isFlipping ? "Flipping..." : "FLIP COIN"}
+              </button>
+            ) : (
+              <div style={{ marginTop: "1rem" }}>
+                <appkit-button
+                  style={{
+                    width: "100%",
+                    display: "block",
+                    padding: "1.5rem 0",
+                    textAlign: "center",
+                    fontSize: "1.25rem",
+                    fontFamily: "Impact, Haettenschweiler, 'Arial Narrow Bold', sans-serif",
+                    letterSpacing: "0.05em",
+                  }}
+                />
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -335,6 +341,15 @@ export default function Home() {
           100% {
             transform: translateY(100vh) rotate(720deg);
             opacity: 0;
+          }
+        }
+
+        @keyframes bounce-slow {
+          0%, 100% {
+            transform: translateY(0);
+          }
+          50% {
+            transform: translateY(-10px);
           }
         }
       `}</style>
