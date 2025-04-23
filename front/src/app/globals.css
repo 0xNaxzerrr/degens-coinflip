@@ -1,0 +1,103 @@
+@import "tailwindcss/preflight";
+@tailwind utilities;
+
+:root {
+  --foreground-rgb: 255, 255, 255;
+  --background-start-rgb: 50, 20, 0;
+  --background-end-rgb: 30, 10, 0;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, "Open Sans",
+    "Helvetica Neue", sans-serif;
+  background-color: #2d1600;
+  color: white;
+  background: linear-gradient(to bottom, rgb(var(--background-start-rgb)), rgb(var(--background-end-rgb))) fixed;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+button {
+  font-family: inherit;
+}
+
+input {
+  font-family: inherit;
+}
+
+@layer utilities {
+  .monkey-text {
+    font-family: Impact, Haettenschweiler, "Arial Narrow Bold", sans-serif;
+    letter-spacing: 0.05em;
+    text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.3);
+  }
+
+  .perspective {
+    perspective: 1000px;
+  }
+
+  .preserve-3d {
+    transform-style: preserve-3d;
+  }
+
+  .backface-hidden {
+    backface-visibility: hidden;
+  }
+
+  .rotate-y-180 {
+    transform: rotateY(180deg);
+  }
+
+  @keyframes fall {
+    0% {
+      transform: translateY(0) rotate(0deg);
+      opacity: 1;
+    }
+    100% {
+      transform: translateY(100vh) rotate(720deg);
+      opacity: 0;
+    }
+  }
+
+  .animate-fall {
+    animation: fall 3s linear forwards;
+  }
+
+  @keyframes banana-explosion {
+    0% {
+      transform: translate(0, 0) rotate(var(--rotation)) scale(var(--scale));
+      opacity: 1;
+    }
+    100% {
+      transform: translate(calc(var(--direction-x) * 100px), calc(var(--direction-y) * 100px))
+        rotate(calc(var(--rotation) + 360deg)) scale(var(--scale));
+      opacity: 0;
+    }
+  }
+
+  .animate-banana-explosion {
+    --direction-x: calc(random(20) - 10);
+    --direction-y: calc(random(20) - 5);
+    --rotation: calc(random(360) * 1deg);
+    --scale: calc(0.5 + random(10) / 10);
+    animation: banana-explosion 2s cubic-bezier(0.22, 0.61, 0.36, 1) forwards;
+  }
+
+  @keyframes bounce-slow {
+    0%,
+    100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-10px);
+    }
+  }
+
+  .animate-bounce-slow {
+    animation: bounce-slow 2s ease-in-out infinite;
+  }
+}
