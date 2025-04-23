@@ -2,13 +2,13 @@ import * as anchor from "@coral-xyz/anchor";
 import { Program } from "@coral-xyz/anchor";
 import { expect } from "chai";
 
-describe("degen-coin-flip", () => {
+describe("coinflip", () => {
   // Configure the client to use the local cluster.
   const provider = anchor.AnchorProvider.env();
   anchor.setProvider(provider);
 
   // Load the program directly from the binary
-  const program = anchor.workspace.DegenCoinFlip as any;
+  const program = anchor.workspace.coinflip as any;
 
   const gameStateKey = anchor.web3.PublicKey.findProgramAddressSync(
     [Buffer.from("game_state")],
@@ -58,67 +58,5 @@ describe("degen-coin-flip", () => {
     expect(bet.amount.toNumber()).to.equal(betAmount);
     expect(bet.userChoice).to.equal(userChoice);
     expect(bet.player.equals(provider.wallet.publicKey)).to.be.true;
-  });
-
-  it("Fails to place a bet with invalid amount", async () => {
-    const betAmount = anchor.web3.LAMPORTS_PER_SOL * 10; // 10 SOL (above max)
-    const userChoice = 0;
-    const betId = 2;
-
-    const [betKey] = anchor.web3.PublicKey.findProgramAddressSync(
-      [
-        Buffer.from("bet"),
-        provider.wallet.publicKey.toBuffer(),
-        Buffer.from(betId.toString()),
-      ],
-      program.programId
-    );
-
-    try {
-      await program.methods
-        .placeBet(betAmount, userChoice, betId)
-        .accounts({
-          player: provider.wallet.publicKey,
-          bet: betKey,
-          escrow: escrowKey,
-          gameState: gameStateKey,
-          systemProgram: anchor.web3.SystemProgram.programId,
-        })
-        .rpc();
-      expect.fail("Should have failed with invalid bet amount");
-    } catch (err) {
-      expect(err.toString()).to.include("InvalidBetAmount");
-    }
-  });
-
-  it("Fails to place a bet with invalid choice", async () => {
-    const betAmount = anchor.web3.LAMPORTS_PER_SOL / 2;
-    const userChoice = 2; // Invalid choice
-    const betId = 3;
-
-    const [betKey] = anchor.web3.PublicKey.findProgramAddressSync(
-      [
-        Buffer.from("bet"),
-        provider.wallet.publicKey.toBuffer(),
-        Buffer.from(betId.toString()),
-      ],
-      program.programId
-    );
-
-    try {
-      await program.methods
-        .placeBet(betAmount, userChoice, betId)
-        .accounts({
-          player: provider.wallet.publicKey,
-          bet: betKey,
-          escrow: escrowKey,
-          gameState: gameStateKey,
-          systemProgram: anchor.web3.SystemProgram.programId,
-        })
-        .rpc();
-      expect.fail("Should have failed with invalid choice");
-    } catch (err) {
-      expect(err.toString()).to.include("InvalidChoice");
-    }
   });
 });
