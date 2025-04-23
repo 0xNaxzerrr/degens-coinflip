@@ -19,5 +19,3 @@ init-if-needed = ["anchor-lang/init-if-needed"]
 
 [dependencies]
 anchor-lang = { version = "0.31.0", features = ["init-if-needed"] }
-pyth-sdk-solana = "0.7.0"
-pyth-vrf = { git = "https://github.com/pyth-network/pyth-sdk-rs", rev = "main" }

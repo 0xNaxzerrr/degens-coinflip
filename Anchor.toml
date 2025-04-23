@@ -6,7 +6,10 @@ resolution = true
 skip-lint = false
 
 [programs.localnet]
-degen_coin_flip = "219KgUWnoJqbYpivorWmaK7SvSkx3tWHnGXHtM4HKz3e"
+degen_coin_flip = "7K22gKZ7nFshbGGBMZetA4W4Dakn58kauwhVTs3yHDk9"
+
+[programs.devnet]
+coinflip = "7K22gKZ7nFshbGGBMZetA4W4Dakn58kauwhVTs3yHDk9"
 
 [registry]
 url = "https://api.apr.dev"
