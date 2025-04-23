@@ -3,9 +3,10 @@
 import { useState, useEffect } from "react"
 import Image from "next/image"
 import { toast } from "sonner"
-import WalletModal from "@/components/wallet-modal"
 import CoinFlip from "@/components/coin-flip"
 import BetControls from "@/components/bet-controls"
+import { useAppKitAccount } from "@reown/appkit/react"
+
 
 export default function Home() {
   const [isMounted, setIsMounted] = useState(false)
@@ -96,6 +97,8 @@ export default function Home() {
       setBananas([])
     }, 3000)
   }
+  const { address, isConnected } = useAppKitAccount()
+
 
   return (
     <main
@@ -191,23 +194,19 @@ export default function Home() {
             MONKEY FLIP
           </h1>
         </div>
-
-        <button
-          onClick={() => setShowModal(true)}
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "0.5rem",
-            padding: "0.5rem 1rem",
-            backgroundColor: "rgba(154, 52, 18, 0.2)",
-            border: "1px solid rgba(234, 88, 12, 0.5)",
-            borderRadius: "0.375rem",
-            color: "rgb(255, 237, 213)",
-            cursor: "pointer",
-          }}
-        >
-          {walletConnected ? "8Fxn...j29P" : "Connect Wallet"}
-        </button>
+        <div style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "0.5rem",
+          padding: "0.5rem 1rem",
+          backgroundColor: "rgba(154, 52, 18, 0.2)",
+          border: "1px solid rgba(234, 88, 12, 0.5)",
+          borderRadius: "0.375rem",
+          color: "rgb(255, 237, 213)",
+          cursor: "pointer",
+        }}>
+          <appkit-button />
+        </div>
       </div>
 
       {/* Main content */}
@@ -279,9 +278,6 @@ export default function Home() {
         <p>Monkey Flip © 2024</p>
         <p>Powered by Solana</p>
       </div>
-
-      {/* Wallet connection modal */}
-      {showModal && <WalletModal onClose={() => setShowModal(false)} onConnect={connectWallet} />}
 
       {/* Large monkey background - LEFT */}
       <div
