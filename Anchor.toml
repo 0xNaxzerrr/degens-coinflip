@@ -20,4 +20,4 @@ cluster = "devnet"
 wallet = "~/.config/solana/id.json"
 
 [scripts]
-test = "yarn mocha -r ts-node/register/transpile-only -r tsconfig-paths/register tests/simple-anchor-test.ts"
+test = "yarn mocha -r ts-node/register/transpile-only -r tsconfig-paths/register \"tests/simple-anchor-test.ts\""

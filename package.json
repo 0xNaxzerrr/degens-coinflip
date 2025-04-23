@@ -4,7 +4,7 @@
   "scripts": {
     "lint:fix": "prettier */*.js \"*/**/*{.js,.ts}\" -w",
     "lint": "prettier */*.js \"*/**/*{.js,.ts}\" --check",
-    "test": "anchor test",
+    "test": "mocha -r ts-node/register/transpile-only -r tsconfig-paths/register tests/simple-anchor-test.ts",
     "build": "anchor build --no-idl"
   },
   "dependencies": {

@@ -1,6 +1,12 @@
 import * as anchor from "@coral-xyz/anchor";
 import { Program } from "@coral-xyz/anchor";
 import { expect } from "chai";
+import * as os from 'os';
+import * as path from 'path';
+
+// Configure the provider URL and wallet
+process.env.ANCHOR_PROVIDER_URL = "https://api.devnet.solana.com";
+process.env.ANCHOR_WALLET = path.join(os.homedir(), ".config/solana/id.json");
 
 describe("simple-anchor-test", () => {
   // Configure the client to use the local cluster.
