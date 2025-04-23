@@ -188,7 +188,7 @@ export default function Home() {
           style={{
             display: "flex",
             alignItems: "center",
-            gap: "0.5rem",
+            justifyContent: "center",
             padding: "0.5rem 1rem",
             backgroundColor: "rgba(154, 52, 18, 0.2)",
             border: "1px solid rgba(234, 88, 12, 0.5)",
@@ -250,18 +250,19 @@ export default function Home() {
                 {isFlipping ? "Flipping..." : "FLIP COIN"}
               </button>
             ) : (
-              <div style={{ marginTop: "1rem" }}>
-                <appkit-button
-                  style={{
-                    width: "100%",
-                    display: "block",
-                    padding: "1.5rem 0",
-                    textAlign: "center",
-                    fontSize: "1.25rem",
-                    fontFamily: "Impact, Haettenschweiler, 'Arial Narrow Bold', sans-serif",
-                    letterSpacing: "0.05em",
-                  }}
-                />
+              <div
+                style={{
+                  width: "100%",
+                  marginTop: "1rem",
+                  backgroundColor: "#f59e0b",
+                  borderRadius: "0.375rem",
+                  padding: "0.75rem 0",
+                  display: "flex",
+                  justifyContent: "center",
+                  alignItems: "center",
+                }}
+              >
+                <appkit-button />
               </div>
             )}
           </div>
