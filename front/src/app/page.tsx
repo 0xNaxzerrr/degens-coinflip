@@ -1,59 +1,122 @@
-"use client"
+"use client";
 
-import { useState, useEffect } from "react"
-import Image from "next/image"
-import { toast } from "sonner"
-import CoinFlip from "@/components/coin-flip"
-import BetControls from "@/components/bet-controls"
-import { useAppKitAccount } from "@reown/appkit/react"
-import { placeBet as placeSolanaBet, createTestWallet, getBetPDA, getEscrowPDA, getGameStatePDA, checkBetResult } from "@/lib/solana"
-import { useConnection, useWallet } from "@solana/wallet-adapter-react"
-import { PublicKey, Transaction, SystemProgram, LAMPORTS_PER_SOL } from "@solana/web3.js"
-import { PhantomOnlyButton } from "@/components/wallet-button"
-import { BN, Program } from "@project-serum/anchor"
-import idl from "@/lib/idl/degen_coin_flip.json"
+import { useState, useEffect } from "react";
+import Image from "next/image";
+import { toast } from "sonner";
+import CoinFlip from "@/components/coin-flip";
+import BetControls from "@/components/bet-controls";
+import { useAppKitAccount } from "@reown/appkit/react";
+import {
+  placeBet as placeSolanaBet,
+  createTestWallet,
+  getBetPDA,
+  getEscrowPDA,
+  getGameStatePDA,
+  checkBetResult,
+} from "@/lib/solana";
+import { useConnection, useWallet } from "@solana/wallet-adapter-react";
+import {
+  PublicKey,
+  Transaction,
+  SystemProgram,
+  LAMPORTS_PER_SOL,
+} from "@solana/web3.js";
+import { PhantomOnlyButton } from "@/components/wallet-button";
+import { BN, Program } from "@project-serum/anchor";
+import * as anchor from "@project-serum/anchor";
+import idl from "@/lib/idl/degen_coin_flip.json";
 
 // Program ID from your deployed contract
-const programId = new PublicKey('BLW2czkQvfXUJFFNovX6BJgpikGx86xqdUuZyoBiX1GW');
+const programId = new PublicKey("BLW2czkQvfXUJFFNovX6BJgpikGx86xqdUuZyoBiX1GW");
 
 export default function Home() {
-  const [isMounted, setIsMounted] = useState(false)
-  const [betAmount, setBetAmount] = useState(0.1)
-  const [isFlipping, setIsFlipping] = useState(false)
-  const [choice, setChoice] = useState<0 | 1>(0) // 0 for heads, 1 for tails
-  const [result, setResult] = useState<null | boolean>(null)
-  const [bananas, setBananas] = useState<Array<{ id: number; left: number; top: number }>>([])
-  const { address, isConnected: isAppKitConnected } = useAppKitAccount()
-  const { connection } = useConnection()
-  const { publicKey, sendTransaction } = useWallet()
-  const [latestBetId, setLatestBetId] = useState<number | null>(null)
-  const [testWallet, setTestWallet] = useState<any>(null)
+  const [isMounted, setIsMounted] = useState(false);
+  const [betAmount, setBetAmount] = useState(0.1);
+  const [isFlipping, setIsFlipping] = useState(false);
+  const [choice, setChoice] = useState<0 | 1>(0); // 0 for heads, 1 for tails
+  const [result, setResult] = useState<null | boolean>(null);
+  const [bananas, setBananas] = useState<
+    Array<{ id: number; left: number; top: number }>
+  >([]);
+  const { address, isConnected: isAppKitConnected } = useAppKitAccount();
+  const { connection } = useConnection();
+  const { publicKey, sendTransaction } = useWallet();
+  const [latestBetId, setLatestBetId] = useState<number | null>(null);
+  const [testWallet, setTestWallet] = useState<any>(null);
+  const [bets, setBets] = useState<
+    Array<{
+      player: string;
+      amount: number;
+      userChoice: number;
+      status: string;
+      timestamp: number;
+      result: number;
+    }>
+  >([]);
+  const [isLoadingBets, setIsLoadingBets] = useState(false);
 
-  const isConnected =  publicKey
+  const isConnected = publicKey;
 
   const displayWalletInfo = () => {
-    console.log("Wallet Status:")
-    console.log("AppKit Connected:", isAppKitConnected)
-    console.log("AppKit Address:", address)
-    console.log("Wallet Adapter Connected:", publicKey ? true : false)
-    console.log("Wallet Adapter PublicKey:", publicKey?.toString())
-    console.log("Test Wallet Active:", testWallet !== null)
-    console.log("Test Wallet PublicKey:", testWallet?.publicKey?.toString())
-    console.log("Combined isConnected:", isConnected)
-    console.log("SendTransaction available:", typeof sendTransaction === 'function')
+    console.log("Wallet Status:");
+    console.log("AppKit Connected:", isAppKitConnected);
+    console.log("AppKit Address:", address);
+    console.log("Wallet Adapter Connected:", publicKey ? true : false);
+    console.log("Wallet Adapter PublicKey:", publicKey?.toString());
+    console.log("Test Wallet Active:", testWallet !== null);
+    console.log("Test Wallet PublicKey:", testWallet?.publicKey?.toString());
+    console.log("Combined isConnected:", isConnected);
+    console.log(
+      "SendTransaction available:",
+      typeof sendTransaction === "function"
+    );
 
     // Vérification de Phantom dans window
-    if (typeof window !== 'undefined') {
+    if (typeof window !== "undefined") {
       // @ts-ignore
       const phantomExists = !!window.phantom?.solana;
       console.log("Phantom existe dans window:", phantomExists);
     }
-  }
+  };
 
+  const fetchBets = async () => {
+    if (!connection || !programId) return;
+
+    setIsLoadingBets(true);
+    try {
+      // Créer une instance du programme Anchor
+      const provider = new anchor.AnchorProvider(connection, {} as any, {});
+      const program = new anchor.Program(idl as any, programId, provider);
+
+      // Récupérer tous les comptes de type "bet"
+      const allBets = await program.account.bet.all();
+
+      // Formater les données pour l'affichage
+      const formattedBets = allBets.map((bet) => ({
+        player: bet.account.player.toString(),
+        amount: bet.account.amount.toNumber() / LAMPORTS_PER_SOL,
+        userChoice: bet.account.userChoice,
+        status: bet.account.status.won
+          ? "Won"
+          : bet.account.status.lost
+          ? "Lost"
+          : "Pending",
+        timestamp: bet.account.timestamp.toNumber(),
+        result: bet.account.result,
+      }));
+
+      setBets(formattedBets);
+    } catch (error: any) {
+      console.error("Error fetching bets:", error);
+      toast.error(`Error loading bets: ${error.message}`);
+    } finally {
+      setIsLoadingBets(false);
+    }
+  };
 
   useEffect(() => {
-    setIsMounted(true)
-    
+    setIsMounted(true);
+
     // Vérification de Phantom dans la fenêtre
     const checkPhantom = () => {
       // @ts-ignore
@@ -66,55 +129,65 @@ export default function Home() {
     };
 
     // Vérification après montage du composant
-    if (typeof window !== 'undefined') {
+    if (typeof window !== "undefined") {
       checkPhantom();
     }
-    
+
     // Log wallet status on mount and when connection status changes
-    displayWalletInfo()
-  }, [isConnected, publicKey, address])
+    displayWalletInfo();
+
+    // Charger les paris au démarrage
+    if (connection) {
+      fetchBets();
+    }
+  }, [isConnected, publicKey, address, connection]);
 
   const placeBet = async () => {
     if (!isConnected) {
-      toast.error("Please connect your wallet first")
-      return
+      toast.error("Please connect your wallet first");
+      return;
     }
 
     // Afficher les informations détaillées du wallet
-    displayWalletInfo()
+    displayWalletInfo();
 
     // Déterminer quel wallet utiliser
-    const activeWallet = testWallet || { publicKey: publicKey || (address ? new PublicKey(address) : null) };
+    const activeWallet = testWallet || {
+      publicKey: publicKey || (address ? new PublicKey(address) : null),
+    };
 
     // Si nous n'avons pas de clé publique, montrer une erreur
     if (!activeWallet.publicKey) {
-      toast.error("Wallet connection issue. Please reconnect.")
-      return
+      toast.error("Wallet connection issue. Please reconnect.");
+      return;
     }
 
-    setIsFlipping(true)
-    toast.loading("Preparing transaction...", { id: "transaction" })
+    setIsFlipping(true);
+    toast.loading("Preparing transaction...", { id: "transaction" });
 
     try {
       // Generate a unique bet ID based on timestamp
-      const betId = Date.now()
-      setLatestBetId(betId)
+      const betId = Date.now();
+      setLatestBetId(betId);
 
       // Vérifier si nous utilisons Phantom directement
       if (publicKey && sendTransaction) {
-        toast.info(`Using Phantom wallet: ${publicKey.toString().slice(0, 10)}...`, { id: "wallet-info" })
-        
+        toast.info(
+          `Using Phantom wallet: ${publicKey.toString().slice(0, 10)}...`,
+          { id: "wallet-info" }
+        );
+
         try {
           // Création manuelle de la transaction
           const walletPubkey = publicKey;
           const lamports = betAmount * LAMPORTS_PER_SOL;
           const userChoice = choice;
-          
+
           // Obtenir les PDAs nécessaires
           const gameState = await getGameStatePDA();
           const escrow = await getEscrowPDA();
           const bet = await getBetPDA(walletPubkey, betId);
-          
+
           console.log("Creating transaction with:", {
             wallet: walletPubkey.toString(),
             amount: betAmount,
@@ -122,26 +195,27 @@ export default function Home() {
             betId: betId,
             escrow: escrow.toString(),
             gameState: gameState.toString(),
-            bet: bet.toString()
+            bet: bet.toString(),
           });
-          
+
           // Obtenir le blockhash récent
-          const { blockhash, lastValidBlockHeight } = await connection.getLatestBlockhash();
-          
+          const { blockhash, lastValidBlockHeight } =
+            await connection.getLatestBlockhash();
+
           // Créer une nouvelle transaction
           const transaction = new Transaction({
             feePayer: walletPubkey,
             blockhash,
-            lastValidBlockHeight
+            lastValidBlockHeight,
           });
-          
+
           // Ajouter les instructions pour l'instruction placeBet
           // Note: Comme le programme attend place_bet avec 3 args mais l'IDL n'en définit que 2
           // On utilise une transaction simple avec serializeData pour inclure les données correctes
-          const betIdBuffer = Buffer.from(new BN(betId).toArray('le', 8));
-          const lamportsBuffer = Buffer.from(new BN(lamports).toArray('le', 8));
+          const betIdBuffer = Buffer.from(new BN(betId).toArray("le", 8));
+          const lamportsBuffer = Buffer.from(new BN(lamports).toArray("le", 8));
           const userChoiceBuffer = Buffer.from([userChoice]);
-          
+
           // Créer l'instruction manuelle
           transaction.add({
             keys: [
@@ -149,89 +223,109 @@ export default function Home() {
               { pubkey: bet, isSigner: false, isWritable: true },
               { pubkey: escrow, isSigner: false, isWritable: true },
               { pubkey: gameState, isSigner: false, isWritable: false },
-              { pubkey: SystemProgram.programId, isSigner: false, isWritable: false },
+              {
+                pubkey: SystemProgram.programId,
+                isSigner: false,
+                isWritable: false,
+              },
             ],
             programId,
             data: Buffer.concat([
               // Discriminator pour place_bet (8 premiers octets)
               Buffer.from([222, 62, 67, 220, 63, 166, 126, 33]),
-              lamportsBuffer,           // amount (u64)
-              userChoiceBuffer,         // userChoice (u8)
-              betIdBuffer               // betId (u64)
-            ])
+              lamportsBuffer, // amount (u64)
+              userChoiceBuffer, // userChoice (u8)
+              betIdBuffer, // betId (u64)
+            ]),
           });
-          
+
           // Envoyer la transaction via wallet-adapter
           const signature = await sendTransaction(transaction, connection);
-          
+
           toast.success("Transaction sent!", { id: "transaction" });
-          toast.info(`Transaction signature: ${signature.slice(0, 10)}...`, { id: "tx-info" });
-          
+          toast.info(`Transaction signature: ${signature.slice(0, 10)}...`, {
+            id: "tx-info",
+          });
+
           // Attendre la confirmation de la transaction
           const confirmation = await connection.confirmTransaction({
             blockhash,
             lastValidBlockHeight,
-            signature
+            signature,
           });
-          
+
           if (confirmation.value.err) {
-            toast.error(`Transaction failed: ${confirmation.value.err}`, { id: "transaction" });
+            toast.error(`Transaction failed: ${confirmation.value.err}`, {
+              id: "transaction",
+            });
             setIsFlipping(false);
             return;
           }
-          
+
           toast.success("Transaction confirmed!", { id: "transaction" });
-          
+
           // Pour le développement, nous simulons encore le résultat
           setTimeout(() => {
             const userWon = Math.random() > 0.5;
             setResult(userWon);
             setIsFlipping(false);
-            
+
             if (userWon) {
               toast.success(`You won ${(betAmount * 2).toFixed(2)} SOL!`);
               spawnBananas();
             } else {
               toast.error(`You lost ${betAmount.toFixed(2)} SOL!`);
             }
+
+            // Rafraîchir la liste des paris après un pari réussi
+            fetchBets();
           }, 2000);
-          
         } catch (txError: any) {
           console.error("Transaction error with Phantom:", txError);
-          toast.error(`Transaction error: ${txError.message}`, { id: "transaction" });
+          toast.error(`Transaction error: ${txError.message}`, {
+            id: "transaction",
+          });
           setIsFlipping(false);
-          
+
           // Fallback to simulation after error
-          toast.warning("Falling back to simulation mode", { id: "simulation", duration: 3000 });
+          toast.warning("Falling back to simulation mode", {
+            id: "simulation",
+            duration: 3000,
+          });
           simulateBet();
         }
       } else {
         // Si ce n'est pas Phantom ou pas de sendTransaction, utiliser la simulation
-        toast.warning("Using simulation mode (wallet cannot sign)", { id: "transaction", duration: 5000 });
+        toast.warning("Using simulation mode (wallet cannot sign)", {
+          id: "transaction",
+          duration: 5000,
+        });
         simulateBet();
       }
     } catch (error: any) {
-      console.error("Error placing bet:", error)
-      toast.error(`Error: ${error.message || "Unknown error"}`, { id: "transaction" })
-      setIsFlipping(false)
+      console.error("Error placing bet:", error);
+      toast.error(`Error: ${error.message || "Unknown error"}`, {
+        id: "transaction",
+      });
+      setIsFlipping(false);
     }
-  }
-  
+  };
+
   // Fonction pour simuler un pari
   const simulateBet = () => {
     setTimeout(() => {
-      toast.success("Transaction simulated!", { id: "transaction" })
-      const userWon = Math.random() > 0.5
-      setResult(userWon)
-      setIsFlipping(false)
+      toast.success("Transaction simulated!", { id: "transaction" });
+      const userWon = Math.random() > 0.5;
+      setResult(userWon);
+      setIsFlipping(false);
       if (userWon) {
-        toast.success(`You won ${(betAmount * 2).toFixed(2)} SOL!`)
-        spawnBananas()
+        toast.success(`You won ${(betAmount * 2).toFixed(2)} SOL!`);
+        spawnBananas();
       } else {
-        toast.error(`You lost ${betAmount.toFixed(2)} SOL!`)
+        toast.error(`You lost ${betAmount.toFixed(2)} SOL!`);
       }
-    }, 2000)
-  }
+    }, 2000);
+  };
 
   const spawnBananas = () => {
     // Use fixed positions for bananas to avoid hydration mismatch
@@ -256,22 +350,21 @@ export default function Home() {
       { left: 5, top: 95 },
       { left: 95, top: 5 },
       { left: 50, top: 50 },
-    ]
+    ];
 
     const newBananas = fixedPositions.map((pos, i) => ({
       id: Date.now() + i,
       left: pos.left,
       top: pos.top,
-    }))
+    }));
 
-    setBananas(newBananas)
+    setBananas(newBananas);
 
     // Remove bananas after animation
     setTimeout(() => {
-      setBananas([])
-    }, 3000)
-  }
-
+      setBananas([]);
+    }, 3000);
+  };
   return (
     <main
       style={{
@@ -352,13 +445,20 @@ export default function Home() {
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-          <Image src="/monkey-logo.png" alt="Monkey Coinflip" width={50} height={50} style={{ borderRadius: "50%" }} />
+          <Image
+            src="/monkey-logo.png"
+            alt="Monkey Coinflip"
+            width={50}
+            height={50}
+            style={{ borderRadius: "50%" }}
+          />
           <h1
             style={{
               fontSize: "1.5rem",
               fontWeight: "bold",
               color: "#f59e0b",
-              fontFamily: "Impact, Haettenschweiler, 'Arial Narrow Bold', sans-serif",
+              fontFamily:
+                "Impact, Haettenschweiler, 'Arial Narrow Bold', sans-serif",
               letterSpacing: "0.05em",
               textShadow: "1px 1px 0 rgba(0, 0, 0, 0.3)",
             }}
@@ -368,11 +468,11 @@ export default function Home() {
         </div>
 
         {/* Wallets Buttons Container */}
-        <div 
+        <div
           style={{
             display: "flex",
             gap: "10px",
-            alignItems: "center"
+            alignItems: "center",
           }}
         >
           {/* Phantom Button */}
@@ -414,10 +514,19 @@ export default function Home() {
             width: "100%",
           }}
         >
-          <CoinFlip isFlipping={isFlipping} result={result} choice={choice} setChoice={setChoice} />
+          <CoinFlip
+            isFlipping={isFlipping}
+            result={result}
+            choice={choice}
+            setChoice={setChoice}
+          />
 
           <div style={{ marginTop: "2rem" }}>
-            <BetControls betAmount={betAmount} setBetAmount={setBetAmount} isFlipping={isFlipping} />
+            <BetControls
+              betAmount={betAmount}
+              setBetAmount={setBetAmount}
+              isFlipping={isFlipping}
+            />
             {isConnected ? (
               <button
                 onClick={placeBet}
@@ -433,7 +542,8 @@ export default function Home() {
                   borderRadius: "0.375rem",
                   border: "none",
                   cursor: isFlipping ? "not-allowed" : "pointer",
-                  fontFamily: "Impact, Haettenschweiler, 'Arial Narrow Bold', sans-serif",
+                  fontFamily:
+                    "Impact, Haettenschweiler, 'Arial Narrow Bold', sans-serif",
                   letterSpacing: "0.05em",
                 }}
               >
@@ -459,6 +569,212 @@ export default function Home() {
               </div>
             )}
           </div>
+        </div>
+
+        {/* Bets History Table */}
+        <div
+          style={{
+            backgroundColor: "rgba(154, 52, 18, 0.4)",
+            borderRadius: "1rem",
+            border: "1px solid rgba(234, 88, 12, 0.2)",
+            padding: "1.5rem",
+            marginTop: "2rem",
+            zIndex: 10,
+          }}
+        >
+          <h2
+            style={{
+              fontSize: "1.5rem",
+              fontWeight: "bold",
+              color: "#f59e0b",
+              marginBottom: "1rem",
+              fontFamily:
+                "Impact, Haettenschweiler, 'Arial Narrow Bold', sans-serif",
+              letterSpacing: "0.05em",
+            }}
+          >
+            RECENT BETS
+          </h2>
+
+          {isLoadingBets ? (
+            <div style={{ textAlign: "center", padding: "2rem" }}>
+              Loading bets...
+            </div>
+          ) : bets.length === 0 ? (
+            <div style={{ textAlign: "center", padding: "2rem" }}>
+              No bets found
+            </div>
+          ) : (
+            <div
+              style={{
+                minWidth: "800px",
+                display: "flex",
+                justifyContent: "center",
+                alignItems: "center",
+              }}
+            >
+              <table
+                style={{
+                  width: "100%",
+                  minWidth: "800px",
+                  borderCollapse: "collapse",
+                  color: "rgb(255, 237, 213)",
+                  tableLayout: "fixed",
+                }}
+              >
+                <thead>
+                  <tr>
+                    <th
+                      style={{
+                        textAlign: "left",
+                        padding: "0.5rem",
+                        borderBottom: "1px solid rgba(234, 88, 12, 0.5)",
+                      }}
+                    >
+                      Player
+                    </th>
+                    <th
+                      style={{
+                        textAlign: "right",
+                        padding: "0.5rem",
+                        borderBottom: "1px solid rgba(234, 88, 12, 0.5)",
+                      }}
+                    >
+                      Amount
+                    </th>
+                    <th
+                      style={{
+                        textAlign: "center",
+                        padding: "0.5rem",
+                        borderBottom: "1px solid rgba(234, 88, 12, 0.5)",
+                      }}
+                    >
+                      Choice
+                    </th>
+                    <th
+                      style={{
+                        textAlign: "center",
+                        padding: "0.5rem",
+                        borderBottom: "1px solid rgba(234, 88, 12, 0.5)",
+                      }}
+                    >
+                      Result
+                    </th>
+                    <th
+                      style={{
+                        textAlign: "center",
+                        padding: "0.5rem",
+                        borderBottom: "1px solid rgba(234, 88, 12, 0.5)",
+                      }}
+                    >
+                      Status
+                    </th>
+                    <th
+                      style={{
+                        textAlign: "right",
+                        padding: "0.5rem",
+                        borderBottom: "1px solid rgba(234, 88, 12, 0.5)",
+                      }}
+                    >
+                      Date
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {bets
+                    .sort((a, b) => b.timestamp - a.timestamp)
+                    .map((bet, index) => (
+                      <tr
+                        key={index}
+                        style={{
+                          backgroundColor:
+                            index % 2 === 0
+                              ? "rgba(154, 52, 18, 0.2)"
+                              : "transparent",
+                        }}
+                      >
+                        <td
+                          style={{
+                            padding: "0.5rem",
+                            borderBottom: "1px solid rgba(234, 88, 12, 0.3)",
+                          }}
+                        >
+                          {bet.player.slice(0, 4)}...{bet.player.slice(-4)}
+                        </td>
+                        <td
+                          style={{
+                            textAlign: "right",
+                            padding: "0.5rem",
+                            borderBottom: "1px solid rgba(234, 88, 12, 0.3)",
+                          }}
+                        >
+                          {bet.amount.toFixed(2)} SOL
+                        </td>
+                        <td
+                          style={{
+                            textAlign: "center",
+                            padding: "0.5rem",
+                            borderBottom: "1px solid rgba(234, 88, 12, 0.3)",
+                          }}
+                        >
+                          {bet.userChoice === 0 ? "Heads" : "Tails"}
+                        </td>
+                        <td
+                          style={{
+                            textAlign: "center",
+                            padding: "0.5rem",
+                            borderBottom: "1px solid rgba(234, 88, 12, 0.3)",
+                          }}
+                        >
+                          {bet.result === 0 ? "Heads" : "Tails"}
+                        </td>
+                        <td
+                          style={{
+                            textAlign: "center",
+                            padding: "0.5rem",
+                            borderBottom: "1px solid rgba(234, 88, 12, 0.3)",
+                            color:
+                              bet.status === "Won"
+                                ? "#22c55e"
+                                : bet.status === "Lost"
+                                ? "#ef4444"
+                                : "inherit",
+                          }}
+                        >
+                          {bet.status}
+                        </td>
+                        <td
+                          style={{
+                            textAlign: "right",
+                            padding: "0.5rem",
+                            borderBottom: "1px solid rgba(234, 88, 12, 0.3)",
+                          }}
+                        >
+                          {new Date(bet.timestamp * 1000).toLocaleString()}
+                        </td>
+                      </tr>
+                    ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          <button
+            onClick={fetchBets}
+            disabled={isLoadingBets}
+            style={{
+              marginTop: "1rem",
+              backgroundColor: "rgba(245, 158, 11, 0.7)",
+              color: "#451a03",
+              fontWeight: "bold",
+              padding: "0.5rem 1rem",
+              borderRadius: "0.375rem",
+              border: "none",
+              cursor: isLoadingBets ? "not-allowed" : "pointer",
+            }}
+          >
+            {isLoadingBets ? "Loading..." : "Refresh Bets"}
+          </button>
         </div>
       </div>
 
@@ -539,7 +855,8 @@ export default function Home() {
         }
 
         @keyframes bounce-slow {
-          0%, 100% {
+          0%,
+          100% {
             transform: translateY(0);
           }
           50% {
@@ -548,5 +865,5 @@ export default function Home() {
         }
       `}</style>
     </main>
-  )
+  );
 }
